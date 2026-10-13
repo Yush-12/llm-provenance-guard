@@ -385,7 +385,7 @@ RE_URL: re.Pattern[str] = re.compile(
 
 # Evidence templates for egress layer findings
 EVIDENCE_CANARY_LEAK: str = "Registered canary secret detected in outbound surface"
-EVIDENCE_DISALLOWED_HOST: str = "Disallowed host in outbound URL: {host}"
+EVIDENCE_DISALLOWED_HOST: str = "Outbound URL host is not on the allowlist"
 EVIDENCE_BYTE_LIMIT_STRING: str = "Outbound string exceeds byte limit: {actual} > {limit}"
 EVIDENCE_BYTE_LIMIT_AGGREGATE: str = (
     "Aggregate outbound reply exceeds byte limit: {actual} > {limit}"
@@ -602,6 +602,7 @@ ARENA_LEVEL_FILENAME_TEMPLATE: str = "level_{level}.yaml"
 ARENA_SESSION_MAX_COUNT: int = 100
 ARENA_SESSION_TTL_SECONDS: int = 3600
 ARENA_MAX_ATTEMPTS_PER_SESSION: int = 20
+ARENA_MAX_PAYLOAD_CHARS: int = 4000
 
 ARENA_CANARY_PREFIX: str = "arena-secret-token-"
 ARENA_CANARY_LENGTH: int = 16

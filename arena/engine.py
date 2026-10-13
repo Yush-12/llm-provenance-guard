@@ -20,9 +20,22 @@ from spanguard.layers.ingress import IngressLayer
 from spanguard.layers.normalize import NormalizeLayer
 from spanguard.layers.provenance import ProvenanceLayer
 from spanguard.layers.toolauth import ToolAuthLayer
-from spanguard.policy import decide
+from spanguard.policy import Policy, decide
 from spanguard.tools import Effect, Guard, Tool, ToolCallRequest
-from spanguard.verdict import Decision, Finding
+from spanguard.verdict import Decision, Finding, Severity
+
+
+def _blocking_finding(findings: list[Finding] | tuple[Finding, ...], policy: Policy) -> Finding:
+    """Attribute a block to an invariant first, then an actual threshold breach."""
+    for finding in findings:
+        if finding.invariant:
+            return finding
+    return next(
+        finding
+        for finding in findings
+        if finding.severity > Severity.INFO and finding.severity >= policy.block_threshold
+    )
+
 
 ARENA_TOOLS: dict[str, Tool] = {
     config.MOCK_EXFIL_TOOL_NAME: Tool(
@@ -95,8 +108,9 @@ def run_attempt(
 
     if verdict_in.decision == Decision.BLOCK:
         # Request-side blocked before agent is ever called
-        stopped_by = verdict_in.findings[0].layer if verdict_in.findings else config.LAYER_INGRESS
-        rule = verdict_in.findings[0].rule if verdict_in.findings else None
+        blocking = _blocking_finding(verdict_in.findings, policy)
+        stopped_by = blocking.layer
+        rule = blocking.rule
         return AttemptResult(
             level=level_config.level,
             payload=payload,
@@ -130,8 +144,8 @@ def run_attempt(
                 leaked=False,
                 blocked=True,
                 stopped_by=config.LAYER_TOOLAUTH,
-                rule=tool_findings[0].rule if tool_findings else None,
-                findings=tuple(tool_findings),
+                rule=_blocking_finding(tool_findings, policy).rule,
+                findings=(*verdict_in.findings, *tool_findings),
                 reply_text=reply.text,
                 tool_calls=reply.tool_calls,
             )
@@ -149,8 +163,8 @@ def run_attempt(
                 leaked=False,
                 blocked=True,
                 stopped_by=config.LAYER_EGRESS,
-                rule=egress_findings[0].rule if egress_findings else None,
-                findings=tuple(egress_findings),
+                rule=_blocking_finding(egress_findings, policy).rule,
+                findings=(*verdict_in.findings, *egress_findings),
                 reply_text=reply.text,
                 tool_calls=reply.tool_calls,
             )
@@ -166,7 +180,7 @@ def run_attempt(
         blocked=False,
         stopped_by=None,
         rule=None,
-        findings=tuple(oracle_findings),
+        findings=(*verdict_in.findings, *oracle_findings),
         reply_text=reply.text,
         tool_calls=reply.tool_calls,
     )

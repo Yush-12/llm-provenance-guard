@@ -57,12 +57,14 @@ def is_host_allowlisted(host: str, allowlist: Sequence[str]) -> bool:
 
 
 def _extract_strings(value: object) -> list[str]:
-    """Recursively extract all string values from tool arguments and nested structures."""
+    """Extract strings from argument keys and values: both are outbound data."""
     if isinstance(value, str):
         return [value]
     if isinstance(value, dict):
         strings: list[str] = []
-        for v in value.values():
+        for key, v in value.items():
+            if isinstance(key, str):
+                strings.append(key)
             strings.extend(_extract_strings(v))
         return strings
     if isinstance(value, (list, tuple, set, frozenset)):
@@ -167,6 +169,7 @@ class EgressLayer:
         if target_reply.text:
             outbound_strings.append(target_reply.text)
         for call in target_reply.tool_calls:
+            outbound_strings.append(call.tool_name)
             outbound_strings.extend(_extract_strings(call.args))
 
         # 2. Check byte limits
@@ -211,7 +214,6 @@ class EgressLayer:
             url_matches = list(config.RE_URL.finditer(s))
             for match in url_matches:
                 host = match.group(1)
-                path_and_query = match.group(2) or ""
 
                 if not is_host_allowlisted(host, target_policy.host_allowlist):
                     findings.append(
@@ -221,13 +223,13 @@ class EgressLayer:
                             severity=Severity.CRITICAL,
                             invariant=True,
                             span_index=None,
-                            evidence=config.EVIDENCE_DISALLOWED_HOST.format(host=host),
+                            # A hostname may itself contain a registered secret.
+                            evidence=config.EVIDENCE_DISALLOWED_HOST,
                         )
                     )
-                    findings.extend(self._scan_canaries(path_and_query, all_canaries))
-                else:
-                    # CamoLeak defense: still check query string and path of allowlisted host
-                    findings.extend(self._scan_canaries(path_and_query, all_canaries))
+                # Inspect the authority as well as the path/query. Secrets can
+                # leave in DNS labels even on an allowlisted parent domain.
+                findings.extend(self._scan_canaries(match.group(0), all_canaries))
 
             # 4. Scan non-URL text for canaries
             text_without_urls = config.RE_URL.sub("", s)

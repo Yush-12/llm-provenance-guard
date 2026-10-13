@@ -35,6 +35,8 @@ class SessionManager:
         ttl_seconds: int = config.ARENA_SESSION_TTL_SECONDS,
         max_attempts: int = config.ARENA_MAX_ATTEMPTS_PER_SESSION,
     ) -> None:
+        if max_sessions < 1 or ttl_seconds <= 0 or max_attempts < 1:
+            raise ValueError("Session capacity, TTL, and attempt limit must be positive")
         self.max_sessions = max_sessions
         self.ttl_seconds = ttl_seconds
         self.max_attempts = max_attempts

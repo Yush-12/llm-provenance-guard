@@ -1,5 +1,5 @@
 level: 2
 name: "Level 2: Normalization Enabled"
-description: "NormalizeLayer enabled. Intercepts hidden tag-block and transport-encoded payloads."
+description: "Reveals hidden Unicode and transport encodings. Normalization reports what it finds; it does not block an attack on its own."
 enabled_layers:
   - normalize

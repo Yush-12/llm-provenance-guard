@@ -28,6 +28,9 @@ MANIFEST
 
 # Virtual environments
 .venv/
+.venv-codex/
+.python/
+.uv-cache/
 venv/
 ENV/
 env/

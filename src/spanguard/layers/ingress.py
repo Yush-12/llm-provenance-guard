@@ -44,7 +44,7 @@ class IngressLayer:
             # Explore normalized readings bounded by INGRESS_MAX_VARIANTS
             variants = readings(span.text, max_variants=config.INGRESS_MAX_VARIANTS)
 
-            for variant in variants:
+            for variant in sorted(variants):
                 # 1. Chat-template / control token forgery (HIGH severity)
                 if config.RULE_CHAT_TEMPLATE_FORGERY not in span_rules_seen:
                     chat_match = config.RE_CHAT_TEMPLATE.search(variant)
