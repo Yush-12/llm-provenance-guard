@@ -124,3 +124,7 @@ known-first-party = ["spanguard"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "parents"  # disallow ..sibling imports; use absolute paths
+
+[tool.vercel]
+entrypoint = "main.py"
+
