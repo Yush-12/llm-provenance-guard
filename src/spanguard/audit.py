@@ -219,10 +219,9 @@ def write_audit_record(
 
 
 class AuditWriter:
-    """Context manager and writer for appending JSONL audit records."""
+    """Context manager wrapper for write_audit_record."""
 
     def __init__(self, path: str | Path | None = None) -> None:
-        """Initialize writer with an optional file path."""
         self.path = path
 
     def write(
@@ -233,9 +232,8 @@ class AuditWriter:
         policy_id: str | None = None,
         elapsed_ms: float | None = None,
     ) -> AuditRecord:
-        """Write an audit record to the configured path."""
         return write_audit_record(
-            verdict=verdict,
+            verdict,
             ctx=ctx,
             path=self.path,
             policy=policy,
@@ -244,8 +242,7 @@ class AuditWriter:
         )
 
     def __enter__(self) -> AuditWriter:
-        """Enter context manager."""
         return self
 
-    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
-        """Exit context manager."""
+    def __exit__(self, *args: object) -> None:
+        pass

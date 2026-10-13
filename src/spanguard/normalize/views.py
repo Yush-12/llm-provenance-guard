@@ -51,8 +51,7 @@ def _view_unicode(s: str) -> list[str]:
 
 def _view_unwrap(s: str) -> list[str]:
     """Produce recursively unwrapped variant of s."""
-    u = unwrap(s)
-    return [u] if u != s else []
+    return [u] if (u := unwrap(s)) != s else []
 
 
 def _view_embedded(s: str) -> list[str]:
@@ -63,37 +62,29 @@ def _view_embedded(s: str) -> list[str]:
 def _view_strip_separators(s: str) -> list[str]:
     """Strip delimiters/separators, preserving base64 padding '='."""
     variants: list[str] = []
-    # Targeted single-separator stripping for interleaved character evasion
     for sep in config.COMMON_SEPARATORS:
-        if sep in s:
-            stripped = s.replace(sep, "")
-            if stripped and stripped != s:
-                variants.append(stripped)
+        if sep in s and (stripped := s.replace(sep, "")) != s:
+            variants.append(stripped)
 
-    # Aggressive multi-separator stripping
     all_stripped = config.RE_SEPARATORS.sub("", s)
     if all_stripped and all_stripped != s and all_stripped not in variants:
         variants.append(all_stripped)
-
     return variants
 
 
 def _view_strip_noise(s: str) -> list[str]:
     """Collapse multiple whitespace runs to a single space."""
-    collapsed = config.RE_WHITESPACE_COLLAPSE.sub(" ", s).strip()
-    return [collapsed] if collapsed and collapsed != s else []
+    return [c] if (c := config.RE_WHITESPACE_COLLAPSE.sub(" ", s).strip()) and c != s else []
 
 
 def _view_rot13(s: str) -> list[str]:
     """Apply rot13 substitution."""
-    r = codecs.encode(s, "rot_13")
-    return [r] if r != s else []
+    return [r] if (r := codecs.encode(s, "rot_13")) != s else []
 
 
 def _view_reversed(s: str) -> list[str]:
     """Reverse string."""
-    rev = s[::-1]
-    return [rev] if rev != s else []
+    return [r] if (r := s[::-1]) != s else []
 
 
 VIEW_FUNCTIONS: tuple[Callable[[str], list[str]], ...] = (

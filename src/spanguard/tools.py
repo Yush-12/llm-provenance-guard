@@ -26,7 +26,6 @@ class Effect(StrEnum):
     READ = "READ"
     SEND = "SEND"
     SPEND = "SPEND"
-    WRITE = "WRITE"
     EXECUTE = "EXECUTE"
 
 
