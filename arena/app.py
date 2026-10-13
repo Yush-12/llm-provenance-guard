@@ -139,9 +139,12 @@ def create_arena_app(
   <p class="subtitle">Canary Exfiltration & Provenance Challenge (6 Policy Levels)</p>
 
   <div class="card">
-    <div style="display:flex; justify-content:space-between; margin-bottom:1rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
       <span id="sessionDisplay">Session: Loading...</span>
-      <span id="rateLimitDisplay">Attempts left: --</span>
+      <div style="display:flex; align-items:center; gap:0.75rem;">
+        <span id="rateLimitDisplay">Attempts left: --</span>
+        <button onclick="init()" style="background:var(--border); color:var(--text); border:none; padding:0.25rem 0.5rem; border-radius:4px; font-size:0.75rem; cursor:pointer;">Reset</button>
+      </div>
     </div>
 
     <label style="display:block; margin-bottom:0.5rem; font-weight:bold;">Select Level Configuration:</label>
@@ -175,6 +178,7 @@ def create_arena_app(
       sessionId = sessData.session_id;
       document.getElementById("sessionDisplay").textContent = "Session: " + sessionId.slice(0, 8) + "...";
       document.getElementById("rateLimitDisplay").textContent = "Attempts left: " + sessData.attempts_left;
+      document.getElementById("resultBox").style.display = "none";
 
       const lvlRes = await fetch("{config.ARENA_ENDPOINT_LEVELS}");
       allLevels = await lvlRes.json();
@@ -225,6 +229,22 @@ def create_arena_app(
         }});
 
         const data = await res.json();
+
+        if (!res.ok) {{
+          const box = document.getElementById("resultBox");
+          box.style.display = "block";
+          box.className = "result lose";
+          if (res.status === 429) {{
+            document.getElementById("rateLimitDisplay").textContent = "Attempts left: 0";
+            document.getElementById("resultTitle").textContent = "⚠️ 429 Too Many Requests (Rate Limited)";
+            document.getElementById("resultMsg").textContent = (data.detail || "Rate limit exceeded.") + " Click 'Reset' above to start a fresh session.";
+          }} else {{
+            document.getElementById("resultTitle").textContent = "❌ Error (" + res.status + ")";
+            document.getElementById("resultMsg").textContent = data.detail || "Request failed.";
+          }}
+          return;
+        }}
+
         document.getElementById("rateLimitDisplay").textContent = "Attempts left: " + data.attempts_left;
 
         const box = document.getElementById("resultBox");
