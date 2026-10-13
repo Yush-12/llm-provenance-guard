@@ -31,7 +31,11 @@ def load_level_config(level: int, levels_dir: str | Path | None = None) -> Level
         msg = f"{config.ARENA_MSG_INVALID_LEVEL}: {level}"
         raise ValueError(msg)
 
-    base_dir = Path(levels_dir) if levels_dir is not None else Path(config.ARENA_LEVELS_DIR)
+    if levels_dir is not None:
+        base_dir = Path(levels_dir)
+    else:
+        pkg_levels = Path(__file__).resolve().parent / "levels"
+        base_dir = pkg_levels if pkg_levels.is_dir() else Path(config.ARENA_LEVELS_DIR)
     filename = config.ARENA_LEVEL_FILENAME_TEMPLATE.format(level=level)
     path = base_dir / filename
 

@@ -26,8 +26,6 @@ def record_bypass(
         return False
 
     target_path = Path(log_path) if log_path is not None else Path(config.ARENA_BYPASS_LOG_PATH)
-    target_path.parent.mkdir(parents=True, exist_ok=True)
-
     record: dict[str, Any] = {
         config.ARENA_RESP_SESSION_ID_KEY: session_id,
         config.ARENA_RESP_LEVEL_KEY: attempt.level,
@@ -37,11 +35,13 @@ def record_bypass(
         config.ARENA_RESP_TOOL_CALLS_KEY: [c.model_dump() for c in attempt.tool_calls],
         "timestamp": time.time(),
     }
-
-    with target_path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(record) + "\n")
-
-    return True
+    try:
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        with target_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(record) + "\n")
+        return True
+    except OSError:
+        return False
 
 
 def load_bypasses(log_path: str | Path | None = None) -> list[dict[str, Any]]:
