@@ -1,0 +1,125 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "spanguard"
+version = "0.1.0"
+description = "Structural provenance firewall against LLM prompt injection"
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+dependencies = [
+    "pydantic>=2.10,<3",
+    "fastapi>=0.115",
+    "uvicorn>=0.34",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    "hypothesis>=6.100",
+    "mypy>=1.13",
+    "ruff>=0.9",
+    "pydantic>=2.10,<3",  # keep mypy plugin happy
+    "pyyaml>=6.0",
+    "types-pyyaml>=6.0",
+    "httpx>=0.28",
+]
+
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/spanguard"]
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers", "--tb=short"]
+
+# ---------------------------------------------------------------------------
+# mypy  (strict mode — no exclusions)
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.13"
+strict = true
+# pydantic plugin gives accurate type inference for model fields
+plugins = ["pydantic.mypy"]
+# Only analyse our source tree; generated stubs for third-parties come
+# from typeshed / inline stubs already bundled with pydantic/fastapi.
+mypy_path = "src"
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+# ---------------------------------------------------------------------------
+# ruff  — strict security-library settings
+# ---------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py313"
+line-length = 99
+src = ["src", "tests", "proxy", "arena"]
+
+[tool.ruff.lint]
+# Rule sets enabled:
+#   E/W  — pycodestyle errors & warnings
+#   F    — Pyflakes
+#   I    — isort
+#   N    — pep8-naming
+#   UP   — pyupgrade (keep syntax modern)
+#   B    — flake8-bugbear (common bugs)
+#   A    — flake8-builtins (shadowed builtins)
+#   C4   — flake8-comprehensions
+#   SIM  — flake8-simplify
+#   TID  — flake8-tidy-imports (no relative-parent imports)
+#   TCH  — flake8-type-checking (TYPE_CHECKING guards)
+#   RUF  — Ruff-specific rules
+#   S    — flake8-bandit (security checks) — critical for a security library
+#   ERA  — eradicate (commented-out code)
+#   PT   — flake8-pytest-style
+#   PIE  — flake8-pie
+#   ISC  — implicit string concatenation
+#   ANN  — flake8-annotations  (enforce type annotations)
+select = [
+    "E", "W", "F", "I", "N", "UP",
+    "B", "A", "C4", "SIM", "TID",
+    "TCH", "RUF", "S", "ERA",
+    "PT", "PIE", "ISC", "ANN",
+]
+ignore = [
+    "E501",    # line length handled by ruff format
+    "RUF001",  # ambiguous unicode character in string (needed for normalization)
+    "RUF002",  # ambiguous unicode character in docstring
+    "RUF003",  # ambiguous unicode character in comment (needed for confusable tables)
+    "TC001",   # type-checking block requirement for application imports
+    "TC002",   # type-checking block requirement for third-party imports
+    "TC003",   # type-checking block requirement for stdlib imports
+    "S110",    # try-except-pass in speculative transport decoders
+]
+
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "S101",   # assert is idiomatic in pytest
+    "S105",   # hardcoded test secrets/canaries
+    "ANN",    # type annotations on test helpers are noise
+]
+"src/spanguard/agent/mock.py" = [
+    "S",      # mock agent is deliberately unsafe — that is the point
+]
+"proxy/**" = [
+    "S105",   # hardcoded test secrets/canaries in proxy examples
+]
+"arena/**" = [
+    "S105",   # test canaries and keys in arena
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["spanguard"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "parents"  # disallow ..sibling imports; use absolute paths

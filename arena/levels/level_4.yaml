@@ -1,0 +1,7 @@
+level: 4
+name: "Level 4: Ingress Heuristics Enabled"
+description: "IngressLayer enabled. Scrutinizes untrusted DATA spans for imperative instruction overrides."
+enabled_layers:
+  - normalize
+  - provenance
+  - ingress

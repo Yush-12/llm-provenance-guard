@@ -1,0 +1,6 @@
+level: 3
+name: "Level 3: Provenance Enabled"
+description: "ProvenanceLayer enabled. Enforces nonce-delimited boundary fences and stops delimiter escape."
+enabled_layers:
+  - normalize
+  - provenance

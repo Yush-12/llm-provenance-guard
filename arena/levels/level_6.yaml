@@ -1,0 +1,9 @@
+level: 6
+name: "Level 6: Full Defense-in-Depth (Egress Firewall)"
+description: "All layers enabled, including EgressLayer canary exfiltration detection across all outbound surfaces."
+enabled_layers:
+  - normalize
+  - provenance
+  - ingress
+  - toolauth
+  - egress

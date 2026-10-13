@@ -1,0 +1,4 @@
+level: 1
+name: "Level 1: Raw Baseline (No Firewall)"
+description: "All content-reading protections disabled. Unmodified injections visibly succeed."
+enabled_layers: []
